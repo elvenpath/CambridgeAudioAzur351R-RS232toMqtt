@@ -41,10 +41,4 @@ create HomeAssistant custom component
 create 3D printed case for the ESP
 
 ##### PS
-My C kung fu is not that strong, so please excuse any badly written code. If you thing you can improve, please do so and open a PR.
-
-
-
-
-
-
+My C kung fu is not that strong, so please excuse any badly written code. If you think you can improve and want to do so, please open a PR.
