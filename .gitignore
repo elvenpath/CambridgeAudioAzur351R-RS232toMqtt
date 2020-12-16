@@ -1,0 +1,4 @@
+.pio
+.vscode
+workspace.code-workspace
+/include/definitions.h
