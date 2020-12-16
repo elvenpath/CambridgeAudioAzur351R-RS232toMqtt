@@ -22,6 +22,10 @@
 
 #define LOG_LEVEL LOG_DEBUG
 
+
+
+// ---- stop editing from here down ----
+
 #define UPDATE_SIZE_UNKNOWN 0xFFFFFFFF
 
 const char *command_topic = "receiver/cmnd";
