@@ -37,8 +37,8 @@ the response is going to look like this:
 `{"status":"on","volume":-56,"isMute":false,"selectedInput":"CD/Video1","sourceType":"Analogue","stats":{"ip":"X.X.X.X","mac":"XX:XX:XX:XX:XX:XX","ssid":"Your_WIFI_SSID","rssi":-76}}`
 
 #### TODO:
-create HomeAssistant custom component
-create 3D printed case for the ESP
+- create HomeAssistant custom component
+- create 3D printed case for the ESP
 
 ##### PS
 My C kung fu is not that strong, so please excuse any badly written code. If you think you can improve and want to do so, please open a PR.
