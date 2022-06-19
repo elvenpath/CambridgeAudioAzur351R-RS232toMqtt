@@ -1,13 +1,12 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include "PubSubClient.h"
+#include <EspMQTTClient.h>
 #include <ArduinoJson.h>
 #include <Syslog.h>
 #include <WiFiUdp.h>
-#include <AsyncElegantOTA.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
+
 #include <lib/logger.h>
 
 #include <include/definitions.h>
@@ -15,49 +14,46 @@
 const int BUFFER_SIZE = JSON_OBJECT_SIZE(32);
 
 WiFiClient espClient;
-PubSubClient mqttClient;
 WiFiUDP udpClient;
 Syslog syslog(udpClient, SYSLOG_PROTO_IETF);
 Logger logger(syslog, LOG_LEVEL, LOG_ENABLE_SERIAL, LOG_ENABLE_SYSLOG);
-AsyncWebServer server(HTTP_PORT);
+static WebServer server(80);
 
-void wifiConnect()
-{
-  WiFi.disconnect();
-  WiFi.mode(WIFI_STA);
+static EspMQTTClient mqttClient(
+    WIFI_SSID,
+    WIFI_PASSWORD,
+    MQTT_SERVER,
+    (MQTT_USER == NULL || strlen(MQTT_USER) < 1) ? NULL : MQTT_USER,
+    (MQTT_PASSWORD == NULL || strlen(MQTT_PASSWORD) < 1) ? NULL : MQTT_PASSWORD,
+    DEVICE_HOSTNAME,
+    MQTT_PORT);
 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  for (int i = 0; i < 25; i++)
-  {
-    if (WiFi.status() != WL_CONNECTED)
-    {
-      delay(100);
-      digitalWrite(LED_BUILTIN, LOW);
-      delay(200);
-      digitalWrite(LED_BUILTIN, HIGH);
-    }
+void publishHomeAssistantDiscoveryESPConfig() {
+  if (!ENABLE_HOMEASSISTANT_DISCOVERY) {
+    return;
   }
-  digitalWrite(LED_BUILTIN, LOW);
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    delay(2000);
-
-    ESP.restart();
-  }
+  String wifiMAC = String(WiFi.macAddress());
+  mqttClient.publish((home_assistant_mqtt_prefix + "/sensor/" + DEVICE_HOSTNAME + "/linkquality/config").c_str(), ("{\"~\":\"" + MQTT_DEVICE_TOPIC + "\"," +
+        + "\"name\":\"" + APP_NAME + " Linkquality\"," +
+        + "\"device\": {\"identifiers\":[\"receiver_" + DEVICE_HOSTNAME + "_" + wifiMAC.c_str() + "\"],\"manufacturer\":\"" + manufacturer + "\",\"model\":\"" + model + "\",\"name\": \"" + DEVICE_HOSTNAME + "\" }," +
+        + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
+        + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_linkquality\"," +
+        + "\"stat_t\": \"~\"," +
+        + "\"value_template\": \"{{ value_json.rssi }}\"," +
+        + "\"icon\":\"mdi:signal\"," +
+        + "\"unit_of_meas\": \"rssi\"}").c_str(), true);
 }
 
 void initSyslog()
 {
   syslog.server(SYSLOG_SERVER, SYSLOG_PORT);
   syslog.deviceHostname(DEVICE_HOSTNAME);
-  syslog.appName(APP_NAME);
   syslog.defaultPriority(LOG_INFO);
-  
+
   logger.log(LOG_DEBUG, "Syslog setup finished. Logging...");
 }
 
-void sendStateToMQTT()
+void sendDeviceStateToMQTT()
 {
   StaticJsonDocument<BUFFER_SIZE> jsonDocument;
   StaticJsonDocument<BUFFER_SIZE> jsonStatsDocument;
@@ -68,23 +64,29 @@ void sendStateToMQTT()
   jsonDocument["selectedInput"] = selectedInput;
   jsonDocument["sourceType"] = sourceType;
 
-  jsonStatsDocument["ip"] = WiFi.localIP().toString();
-  jsonStatsDocument["mac"] = WiFi.macAddress();
-  jsonStatsDocument["ssid"] = WiFi.SSID();
-  jsonStatsDocument["rssi"] = WiFi.RSSI();
+  char buffer[BUFFER_SIZE];
+  size_t n = serializeJson(jsonDocument, buffer);
+  mqttClient.publish(MQTT_STATE_TOPIC.c_str(), buffer, true);
+}
 
-  jsonDocument["stats"] = jsonStatsDocument;
+void sendEspDeviceStateToMQTT() {
+  StaticJsonDocument<BUFFER_SIZE> jsonDocument;
+  jsonDocument["ip"] = WiFi.localIP().toString();
+  jsonDocument["mac"] = WiFi.macAddress();
+  jsonDocument["ssid"] = WiFi.SSID();
+  jsonDocument["rssi"] = WiFi.RSSI();
 
   char buffer[BUFFER_SIZE];
   size_t n = serializeJson(jsonDocument, buffer);
-  mqttClient.publish(status_topic, buffer, true);
+
+  mqttClient.publish(MQTT_DEVICE_TOPIC.c_str(), buffer, true);
 }
 
 void sendCommandToSerial(String command)
 {
   logger.log(LOG_DEBUG, "sending command to serial");
   logger.log(LOG_DEBUG, command);
-  
+
   Serial.println(command);
 }
 
@@ -110,16 +112,13 @@ void handleOnOffReply(String onOffReplyMessage)
 {
   logger.log(LOG_DEBUG, "On/off reply message: " + onOffReplyMessage);
 
-  if (onOffReplyMessage == onReply)
-  {
+  if (onOffReplyMessage == onReply) {
     powerState = true;
-  }
-  else if (onOffReplyMessage == offReply)
-  {
+  } else if (onOffReplyMessage == onReplyAlternative) {
+    powerState = true;
+  } else if (onOffReplyMessage == offReply) {
     powerState = false;
-  }
-  else
-  {
+  } else {
     logger.log(LOG_ERR, "Unknown on/off reply message: " + onOffReplyMessage);
   }
 }
@@ -248,7 +247,7 @@ bool handleReceivedMessage(String replyMessage)
     return false;
   }
 
-  sendStateToMQTT();
+  sendDeviceStateToMQTT();
 
   return true;
 }
@@ -276,7 +275,7 @@ void serialReadLoop()
   }
 }
 
-bool processJson(char *message)
+bool processJson(String message)
 {
   StaticJsonDocument<BUFFER_SIZE> jsonDocument;
 
@@ -286,6 +285,7 @@ bool processJson(char *message)
   if (root.isNull())
   {
     logger.log(LOG_ERR, "parseObject() failed");
+    logger.log(LOG_ERR, message);
 
     return false;
   }
@@ -388,71 +388,65 @@ bool processJson(char *message)
   return true;
 }
 
-void callback(char *topic, byte *payload, unsigned int length)
+void initMqtt()
 {
-  logger.log(LOG_DEBUG, "Message arrived");
-
-  char message[length + 1];
-  for (unsigned int i = 0; i < length; i++)
-  {
-    message[i] = (char)payload[i];
+  mqttClient.setMqttReconnectionAttemptDelay(100);
+  mqttClient.enableLastWillMessage(MQTT_WILL_TOPIC.c_str(), "offline");
+  mqttClient.setKeepAlive(60);
+  mqttClient.setMaxPacketSize(MQTT_PACKET_SIZE);
+  if (LOG_ENABLE_SERIAL) {
+    mqttClient.enableDebuggingMessages();
   }
-
-  // Conver the incoming byte array to a string
-  message[length] = '\0'; // Null terminator used to terminate the char array
-  logger.log(LOG_DEBUG, message);
-
-  if (!processJson(message))
-  {
-    logger.log(LOG_ERR, "Could not process message");
-
-    return;
-  }
+  mqttClient.enableHTTPWebUpdater(HTTP_USER, HTTP_PASSWORD);
+  mqttClient.enableOTA(HTTP_PASSWORD);
 }
 
-void mqttSetup()
-{
-  mqttClient.setClient(espClient);
-  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
-  logger.log(LOG_INFO, "MQTT client configured");
-  mqttClient.setCallback(callback);
-}
+static long lastOnlinePublished = 0;
 
-void mqttConnect()
+void publishLastwillOnline()
 {
-  mqttSetup();
-
-  // Loop until we're reconnected
-  while (!mqttClient.connected())
+  if ((millis() - lastOnlinePublished) > 30000)
   {
-    digitalWrite(LED_BUILTIN, LOW);
-    if (mqttClient.connect(DEVICE_HOSTNAME, MQTT_USER, MQTT_PASSWORD))
+    if (mqttClient.isConnected())
     {
-      logger.log(LOG_INFO, "MQTT connected");
-      digitalWrite(LED_BUILTIN, HIGH);
-      mqttClient.subscribe(command_topic);
+      mqttClient.publish(MQTT_WILL_TOPIC.c_str(), "online", true);
+      lastOnlinePublished = millis();
+      sendEspDeviceStateToMQTT();
+    }
+  }
+}
+
+void initMdns()
+{
+  if (!MDNS.begin(DEVICE_HOSTNAME))
+  { // http://esp32.local
+    logger.log(LOG_EMERG, "Error setting up MDNS responder!");
+    while (1)
+    {
       delay(1000);
     }
-    else
-    {
-      logger.log(LOG_ERR, "MQTT connection failed, rc=" + String(mqttClient.state()));
-      logger.log(LOG_ERR, "Trying again in 5 seconds");
-      delay(5000);
-      digitalWrite(LED_BUILTIN, HIGH);
-    }
   }
 }
 
-void initWebserver()
+void onConnectionEstablished()
 {
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", "Hi! I am here.");
+  initMdns();
+  server.close();
+  server.begin();
+  mqttClient.publish(MQTT_WILL_TOPIC.c_str(), "online", true);
+  sendDeviceStateToMQTT();
+  sendEspDeviceStateToMQTT();
+
+  mqttClient.subscribe(MQTT_COMMAND_TOPIC.c_str(), [](const String &payload) {
+    logger.log(LOG_DEBUG, "Message arrived");
+    logger.log(LOG_DEBUG, payload);
+
+    if (!processJson(payload)) {
+      logger.log(LOG_ERR, "Could not process message");
+    } 
   });
 
-  AsyncElegantOTA.begin(&server, HTTP_USER, HTTP_PASSWORD); // Start ElegantOTA
-
-  server.begin();
-  logger.log(LOG_DEBUG, "HTTP server started");
+  publishHomeAssistantDiscoveryESPConfig();
 }
 
 void setup()
@@ -461,34 +455,20 @@ void setup()
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  wifiConnect();
-
-  initWebserver();
+  initMdns();
 
   initSyslog();
 
-  mqttConnect();
+  initMqtt();
 
-  sendStateToMQTT();
+  logger.log(LOG_DEBUG, "Device started.");
 }
 
 void loop()
 {
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    wifiConnect();
-  }
-
-  AsyncElegantOTA.loop();
-
-  if (!mqttClient.connected())
-  {
-    logger.log(LOG_ERR, "MQTT not Connected!");
-    delay(1000);
-    mqttConnect();
-  }
-
   mqttClient.loop();
 
   serialReadLoop();
+
+  publishLastwillOnline();
 }

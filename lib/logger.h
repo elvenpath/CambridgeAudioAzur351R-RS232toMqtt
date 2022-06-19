@@ -4,7 +4,7 @@ class Logger
 {
 private:
     Syslog *syslog;
-    bool serial_log_enabled = true;
+    bool serial_log_enabled = false;
     bool syslog_log_enabled = true;
     uint16_t log_level = LOG_DEBUG;
 

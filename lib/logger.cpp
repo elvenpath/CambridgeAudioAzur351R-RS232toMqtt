@@ -11,9 +11,9 @@ Logger::Logger(Syslog &syslog, uint16_t log_level, bool serial_log_enabled, bool
 
 void Logger::log(uint16_t pri, const String &message)
 {
-    if (pri <= this->log_level)
-    {
-        if (this->syslog_log_enabled)
+    // if (pri <= this->log_level)
+    // {
+        if (this->syslog_log_enabled)        
         {
             this->syslog->log(pri, message);
         }
@@ -22,13 +22,13 @@ void Logger::log(uint16_t pri, const String &message)
         {
             Serial.println(message);
         }
-    }
+    // }
 }
 
 void Logger::log(uint16_t pri, const char *message)
 {
-    if (pri <= this->log_level)
-    {
+    // if (pri <= this->log_level)
+    // {        
         if (this->syslog_log_enabled)
         {
             this->syslog->log(pri, message);
@@ -37,5 +37,5 @@ void Logger::log(uint16_t pri, const char *message)
         {
             Serial.println(message);
         }
-    }
+    // }
 }

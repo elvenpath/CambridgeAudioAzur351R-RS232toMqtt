@@ -1,43 +1,51 @@
-#define MQTT_SERVER ""
-#define MQTT_PORT 1883
-#define MQTT_USER ""
-#define MQTT_PASSWORD ""
+static const char *MQTT_SERVER = "";
+static const u_int MQTT_PORT = 1883;
+static const char *MQTT_USER = "";
+static const char *MQTT_PASSWORD = "";
 
-#define HTTP_USER "admin"
-#define HTTP_PASSWORD "admin"
-#define HTTP_PORT 8083
+static const char *HTTP_USER = "admin";
+static const char *HTTP_PASSWORD = "admin";
 
-#define SYSLOG_SERVER ""
-#define SYSLOG_PORT 514
+static const char *SYSLOG_SERVER = "";
+static const u_int SYSLOG_PORT = 513;
 
-#define DEVICE_HOSTNAME "ca_receiver_rs232"
+static const char *DEVICE_HOSTNAME = "ca_receiver_rs232";
 
-#define APP_NAME "Cambridge Audio RS232 to MQTT"
+static const char *WIFI_SSID = "";
+static const char *WIFI_PASSWORD = "";
 
-#define WIFI_SSID ""
-#define WIFI_PASSWORD ""
+static const bool LOG_ENABLE_SYSLOG = true;
+static const bool LOG_ENABLE_SERIAL = false;
 
-#define LOG_ENABLE_SYSLOG true
-#define LOG_ENABLE_SERIAL false
-
-#define LOG_LEVEL LOG_DEBUG
-
-
+static const u_int LOG_LEVEL = LOG_DEBUG;
 
 // ---- stop editing from here down ----
 
 #define UPDATE_SIZE_UNKNOWN 0xFFFFFFFF
 
-const char *command_topic = "receiver/cmnd";
-const char *status_topic = "receiver/stat";
+static const std::string APP_NAME = "Cambridge Audio RS232 to MQTT";
+static const std::string APP_VERSION = "v1.00";
 
-const unsigned int baud_rate = 9600;
+static const std::string MQTT_BASE_TOPIC = "receiver";
+static const std::string MQTT_COMMAND_TOPIC = MQTT_BASE_TOPIC + "/cmnd";
+static const std::string MQTT_STATE_TOPIC = MQTT_BASE_TOPIC + "/state";
+static const std::string MQTT_WILL_TOPIC = MQTT_BASE_TOPIC + "/lastwill";
+static const std::string MQTT_DEVICE_TOPIC = MQTT_BASE_TOPIC + "/esp";
+
+static const bool ENABLE_HOMEASSISTANT_DISCOVERY = true;
+static const std::string home_assistant_mqtt_prefix = "homeassistant"; 
+static const std::string manufacturer = "Cambridge Audio";
+static const std::string model = "Azur 351R Receiver";
+
+static const uint16_t MQTT_PACKET_SIZE = 1024;
+
+static const unsigned int baud_rate = 9600;
 
 bool powerState = false; // store the power stat of the device
-int8_t volume = -33; // default volume until we know the real one
-bool isMuted = false; // store if the device is muted
-String selectedInput; // store the selected input type
-String sourceType; // store the selected source
+int8_t volume = -33;     // default volume until we know the real one
+bool isMuted = false;    // store if the device is muted
+String selectedInput;    // store the selected input type
+String sourceType;       // store the selected source
 
 String receivedSerialMessage; // store the message received from the device over RS2322
 
@@ -64,7 +72,8 @@ const char *sourceTypeHDMICommand = "#2,04,02";
 const char *sourceTypeOpticalCommand = "#2,04,04";
 
 const char *onOffReply = "#6,01";
-const char *onReply = "1";
+const char *onReply = "01";
+const char *onReplyAlternative = "1"; // for the case the device sends a "1" instead of "01"
 const char *offReply = "00";
 
 const char *volumeUpReply = "#6,02,";
