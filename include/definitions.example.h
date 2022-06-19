@@ -24,7 +24,7 @@ static const u_int LOG_LEVEL = LOG_DEBUG;
 #define UPDATE_SIZE_UNKNOWN 0xFFFFFFFF
 
 static const std::string APP_NAME = "Cambridge Audio RS232 to MQTT";
-static const std::string APP_VERSION = "v1.00";
+static const std::string APP_VERSION = "v1.10";
 
 static const std::string MQTT_BASE_TOPIC = "receiver";
 static const std::string MQTT_COMMAND_TOPIC = MQTT_BASE_TOPIC + "/cmnd";
