@@ -19,7 +19,7 @@ Clone this repository, rename include/definitions.example.h to include/definitio
  - select input source
  - select audio source for input
 
-You can also send raw commands, if you need something else that the ones above
+You can also send raw commands, if you need something else that the ones above.
 
 #### MQTT payload examples
 
@@ -34,7 +34,7 @@ You can also send raw commands, if you need something else that the ones above
     {"status":"off"}
 
 the response is going to look like this:
-`{"status":"on","volume":-56,"isMute":false,"selectedInput":"CD/Video1","sourceType":"Analogue","stats":{"ip":"X.X.X.X","mac":"XX:XX:XX:XX:XX:XX","ssid":"Your_WIFI_SSID","rssi":-76}}`
+`{"status":"on","volume":-33,"isMute":false,"selectedInput":"CD/Video1","sourceType":"Analogue"}`
 
 #### TODO:
 - create HomeAssistant custom component
