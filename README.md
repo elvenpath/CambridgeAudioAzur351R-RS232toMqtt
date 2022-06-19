@@ -1,5 +1,5 @@
 
-# CambridgeAudioAzur351R-RS232toMqtt
+# CambridgeAudioAzur351R-RS232toMqtt with HomeAssstant
 
   
 Cambridge Audio Azur 351R RS-232 (serial port) to MQTT using and ESP8266 or ESP32.
