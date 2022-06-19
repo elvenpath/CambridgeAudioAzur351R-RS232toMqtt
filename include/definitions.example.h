@@ -28,6 +28,7 @@ static const std::string APP_VERSION = "v1.00";
 
 static const std::string MQTT_BASE_TOPIC = "receiver";
 static const std::string MQTT_COMMAND_TOPIC = MQTT_BASE_TOPIC + "/cmnd";
+static const std::string MQTT_COMMAND_RESPONSE_TOPIC = MQTT_COMMAND_TOPIC + "/response";
 static const std::string MQTT_STATE_TOPIC = MQTT_BASE_TOPIC + "/state";
 static const std::string MQTT_WILL_TOPIC = MQTT_BASE_TOPIC + "/lastwill";
 static const std::string MQTT_DEVICE_TOPIC = MQTT_BASE_TOPIC + "/esp";
@@ -36,6 +37,10 @@ static const bool ENABLE_HOMEASSISTANT_DISCOVERY = true;
 static const std::string home_assistant_mqtt_prefix = "homeassistant"; 
 static const std::string manufacturer = "Cambridge Audio";
 static const std::string model = "Azur 351R Receiver";
+
+const char* ntpServer = "";
+const long gmtOffsetHours = 3; // GMT +3
+unsigned long ntpUpdateHoursInterval = 12;
 
 static const uint16_t MQTT_PACKET_SIZE = 1024;
 
@@ -47,7 +52,9 @@ bool isMuted = false;    // store if the device is muted
 String selectedInput;    // store the selected input type
 String sourceType;       // store the selected source
 
-String receivedSerialMessage; // store the message received from the device over RS2322
+String receivedSerialMessage; // store the message received from the device over RS232
+bool receivedSerialMessageIsError = false; // store if the last message received from the device over RS232 has an error
+String receivedMqttCommand; // store the mqtt command to be sent to the device over RS232
 
 const char *onCommand = "#1,01,1";
 const char *offCommand = "#1,01,0";
@@ -75,6 +82,7 @@ const char *onOffReply = "#6,01";
 const char *onReply = "01";
 const char *onReplyAlternative = "1"; // for the case the device sends a "1" instead of "01"
 const char *offReply = "00";
+const char *offReplyAlternative = "0"; // for the case the device sends a "1" instead of "01"
 
 const char *volumeUpReply = "#6,02,";
 const char *volumeDownReply = "#6,03,";
