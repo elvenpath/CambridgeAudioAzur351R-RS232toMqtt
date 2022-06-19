@@ -9,7 +9,7 @@ Azur 351R Receiver is a classic receiver without any network/smart functionaliti
 I wanted to have the receiver integrated with my [HomeAssistant](https://www.home-assistant.io/) so i decided to use an ESP8266 and communicate with my HA using MQTT.
 
 #### Instalation
-Clone this repository, rename include/definitions.example.h to include/definitions.h, edit it to your needs and compile and write the project an ESP8266/ESP32 with PlatformIO (or whatever else suits you).
+Clone this repository, rename include/definitions.example.h to include/definitions.h, edit it to your needs. 
 
 #### Commands implemented
 
