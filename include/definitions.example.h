@@ -24,7 +24,7 @@ static const u_int LOG_LEVEL = LOG_DEBUG;
 #define UPDATE_SIZE_UNKNOWN 0xFFFFFFFF
 
 static const std::string APP_NAME = "Cambridge Audio RS232 to MQTT";
-static const std::string APP_VERSION = "v1.10";
+static const std::string APP_VERSION = "v1.20";
 
 static const std::string MQTT_BASE_TOPIC = "receiver";
 static const std::string MQTT_COMMAND_TOPIC = MQTT_BASE_TOPIC + "/cmnd";
@@ -69,7 +69,7 @@ const char *inputSelectBDCommand = "#2,01,01";
 const char *inputSelectCDCommand = "#2,01,02";
 const char *inputSelectVideo2Command = "#2,01,03";
 const char *inputSelectAuxCommand = "#2,01,04";
-const char *inputSelectTunnerCommand = "#2,01,06";
+const char *inputSelectTunerCommand = "#2,01,06";
 const char *inputSelectTVARCCommand = "#2,01,09";
 
 const char *sourceTypeAnalogueCommand = "#2,04,00";
@@ -96,7 +96,7 @@ const char *inputSelectedBDReply = "01";
 const char *inputSelectedCDReply = "02";
 const char *inputSelectedVideo2Reply = "03";
 const char *inputSelectedAuxReply = "04";
-const char *inputSelectedTunnerReply = "06";
+const char *inputSelectedTunerReply = "06";
 const char *inputSelectedTVARCReply = "09";
 
 const char *sourceTypeReply = "#7,04";
@@ -114,7 +114,7 @@ const char *inputSelectedBDLabel = "BD/DVD";
 const char *inputSelectedCDLabel = "CD/Video1";
 const char *inputSelectedVideo2Label = "Video2";
 const char *inputSelectedAuxLabel = "Aux";
-const char *inputSelectedTunnerLabel = "Tunner";
+const char *inputSelectedTunerLabel = "Tuner";
 const char *inputSelectedTVARCLabel = "TV ARC";
 
 const char *sourceTypeAnalogueLabel = "Analogue";

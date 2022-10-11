@@ -1,13 +1,8 @@
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
 #include <EspMQTTClient.h>
 #include <ArduinoJson.h>
 #include <Syslog.h>
 #include <WiFiUdp.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
-#include <NTPClient.h>
-
 #include <lib/logger.h>
 
 #include <include/definitions.h>
@@ -17,11 +12,9 @@ const int BUFFER_SIZE = JSON_OBJECT_SIZE(32);
 WiFiClient espClient;
 WiFiUDP udpClient;
 Syslog syslog(udpClient, SYSLOG_PROTO_IETF);
-static WebServer server(80);
-NTPClient timeClient(udpClient, ntpServer, 3600 * gmtOffsetHours, 60 * 60 * 1000 * ntpUpdateHoursInterval);
-Logger logger(syslog, timeClient, LOG_LEVEL, LOG_ENABLE_SERIAL, LOG_ENABLE_SYSLOG);
+Logger logger(syslog, LOG_LEVEL, LOG_ENABLE_SERIAL, LOG_ENABLE_SYSLOG);
 
-static EspMQTTClient mqttClient(
+static EspMQTTClient client(
     WIFI_SSID,
     WIFI_PASSWORD,
     MQTT_SERVER,
@@ -35,9 +28,10 @@ void publishHomeAssistantDiscoveryPowerConfig(String deviceString) {
     return;
   }
  
-  mqttClient.publish((home_assistant_mqtt_prefix + "/switch/" + DEVICE_HOSTNAME + "/power/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
+  client.publish((home_assistant_mqtt_prefix + "/switch/" + DEVICE_HOSTNAME + "/power/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
         + "\"name\":\"" + APP_NAME + " Power\"," +
         + deviceString.c_str() +
+        + "\"retain\": true," +
         + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
         + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_power\"," +
         + "\"stat_t\": \"" + MQTT_STATE_TOPIC + "\"," +
@@ -55,11 +49,12 @@ void publishHomeAssistantDiscoverySourceConfig(String deviceString) {
     return;
   }
  
-  mqttClient.publish((home_assistant_mqtt_prefix + "/select/" + DEVICE_HOSTNAME + "/input/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
+  client.publish((home_assistant_mqtt_prefix + "/select/" + DEVICE_HOSTNAME + "/input/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
         + "\"name\":\"" + APP_NAME + " Input\"," +
         + deviceString.c_str() +
         + "\"ent_cat\": \"config\"," + 
-        + "\"options\": [\"BD/DVD\", \"CD/Video1\", \"Video2\", \"Aux\", \"Tunner\", \"TV ARC\"]," +
+        + "\"retain\": true," +
+        + "\"options\": [\"BD/DVD\", \"CD/Video1\", \"Video2\", \"Aux\", \"Tuner\", \"TV ARC\"]," +
         + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
         + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_input\"," +
         + "\"stat_t\": \"" + MQTT_STATE_TOPIC + "\"," +
@@ -74,10 +69,11 @@ void publishHomeAssistantDiscoverySourceTypeConfig(String deviceString) {
     return;
   }
   
-  mqttClient.publish((home_assistant_mqtt_prefix + "/select/" + DEVICE_HOSTNAME + "/inputType/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
+  client.publish((home_assistant_mqtt_prefix + "/select/" + DEVICE_HOSTNAME + "/inputType/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
         + "\"name\":\"" + APP_NAME + " Input Type\"," +
         + deviceString.c_str() +
         + "\"ent_cat\": \"config\"," + 
+        + "\"retain\": true," +
         + "\"options\": [\"Analogue\", \"Coax1\", \"Coax2\", \"HDMI\", \"Optical\"]," +
         + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
         + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_input_type\"," +
@@ -88,12 +84,107 @@ void publishHomeAssistantDiscoverySourceTypeConfig(String deviceString) {
         + "\"icon\":\"mdi:audio-input-xlr\"}").c_str(), true);
 }
 
+void publishHomeAssistantDiscoveryRestartButton(String deviceString) {
+  if (!ENABLE_HOMEASSISTANT_DISCOVERY) {
+    return;
+  }
+  
+  client.publish((home_assistant_mqtt_prefix + "/button/" + DEVICE_HOSTNAME + "/restart/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
+        + "\"name\":\"" + APP_NAME + " Restart\"," +
+        + deviceString.c_str() +
+        + "\"ent_cat\": \"config\"," + 
+        + "\"dev_cla\": \"restart\"," + 
+        + "\"retain\": true," +
+        + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
+        + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_restart\"," +
+        + "\"stat_t\": \"" + MQTT_STATE_TOPIC + "\"," +
+        + "\"payload_press\": \"{\\\"restart\\\": \\\"true\\\"}\"," +
+        + "\"cmd_t\": \"" + MQTT_COMMAND_TOPIC + "\"," +
+        + "\"icon\":\"mdi:restart\"}").c_str(), true);
+}
+
+void publishHomeAssistantDiscoveryVolume(String deviceString) {
+  if (!ENABLE_HOMEASSISTANT_DISCOVERY) {
+    return;
+  }
+  
+  client.publish((home_assistant_mqtt_prefix + "/sensor/" + DEVICE_HOSTNAME + "/volume/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
+        + "\"name\":\"" + APP_NAME + " Volume\"," +
+        + deviceString.c_str() +
+        + "\"ent_cat\": \"config\"," + 
+        + "\"retain\": true," +
+        + "\"dev_cla\": \"signal_strength\"," + 
+        + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
+        + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_volume\"," +
+        + "\"stat_t\": \"" + MQTT_STATE_TOPIC + "\"," +
+        + "\"val_tpl\": \"{{ value_json.volume }}\"," +
+        + "\"cmd_t\": \"" + MQTT_COMMAND_TOPIC + "\"," +
+        + "\"unit_of_meas\": \"db\"," +
+        + "\"icon\":\"mdi:volume-high\"}").c_str(), true);
+
+  client.publish((home_assistant_mqtt_prefix + "/button/" + DEVICE_HOSTNAME + "/volume-up/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
+        + "\"name\":\"" + APP_NAME + " Increase Volume\"," +
+        + deviceString.c_str() +
+        + "\"ent_cat\": \"config\"," + 
+        + "\"retain\": true," +
+        + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
+        + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_volume_increase\"," +
+        + "\"stat_t\": \"" + MQTT_STATE_TOPIC + "\"," +
+        + "\"payload_press\": \"{\\\"volume\\\": \\\"up\\\"}\"," +
+        + "\"cmd_t\": \"" + MQTT_COMMAND_TOPIC + "\"," +
+        + "\"icon\":\"mdi:volume-plus\"}").c_str(), true);
+  client.publish((home_assistant_mqtt_prefix + "/button/" + DEVICE_HOSTNAME + "/volume-down/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
+        + "\"name\":\"" + APP_NAME + " Decrease Volume\"," +
+        + deviceString.c_str() +
+        + "\"ent_cat\": \"config\"," + 
+        + "\"retain\": true," +
+        + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
+        + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_volume_decrease\"," +
+        + "\"stat_t\": \"" + MQTT_STATE_TOPIC + "\"," +
+        + "\"payload_press\": \"{\\\"volume\\\": \\\"down\\\"}\"," +
+        + "\"cmd_t\": \"" + MQTT_COMMAND_TOPIC + "\"," +
+        + "\"icon\":\"mdi:volume-minus\"}").c_str(), true);
+
+  client.publish((home_assistant_mqtt_prefix + "/binary_sensor/" + DEVICE_HOSTNAME + "/muted/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
+        + "\"name\":\"" + APP_NAME + " Muted\"," +
+        + deviceString.c_str() +
+        + "\"ent_cat\": \"config\"," + 
+        + "\"dev_cla\": \"sound\"," + 
+        + "\"enabled_by_default\": false," + 
+        + "\"pl_on\": \"on\"," + 
+        + "\"pl_off\": \"off\"," + 
+        + "\"retain\": true," +
+        + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
+        + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_muted\"," +
+        + "\"stat_t\": \"" + MQTT_STATE_TOPIC + "\"," +
+        + "\"val_tpl\": \"{{ value_json.mute }}\"," +
+        + "\"cmd_t\": \"" + MQTT_COMMAND_TOPIC + "\"," +
+        + "\"icon\":\"mdi:volume-off\"}").c_str(), true);
+
+  client.publish((home_assistant_mqtt_prefix + "/switch/" + DEVICE_HOSTNAME + "/mute/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
+        + "\"name\":\"" + APP_NAME + " Mute\"," +
+        + deviceString.c_str() +
+        + "\"avty_t\": \"" + MQTT_WILL_TOPIC + "\"," +
+        + "\"uniq_id\":\"" + DEVICE_HOSTNAME + "_mute\"," +
+        + "\"ent_cat\": \"config\"," + 
+        + "\"dev_cla\": \"switch\"," + 
+        + "\"stat_t\": \"" + MQTT_STATE_TOPIC + "\"," +
+        + "\"stat_on\": \"on\"," +
+        + "\"retain\": true," +
+        + "\"stat_off\": \"off\"," +
+        + "\"pl_on\": \"{\\\"mute\\\": \\\"on\\\"}\"," +
+        + "\"pl_off\": \"{\\\"mute\\\": \\\"off\\\"}\"," +
+        + "\"val_tpl\": \"{{ value_json.mute }}\"," +
+        + "\"cmd_t\": \"" + MQTT_COMMAND_TOPIC + "\"," +
+        + "\"icon\":\"mdi:volume-off\"}").c_str(), true);
+}
+
 void publishHomeAssistantDiscoveryESPConfig(String deviceString) {
   if (!ENABLE_HOMEASSISTANT_DISCOVERY) {
     return;
   }
   
-  mqttClient.publish((home_assistant_mqtt_prefix + "/sensor/" + DEVICE_HOSTNAME + "/linkquality/config").c_str(), ("{\"~\":\"" + MQTT_DEVICE_TOPIC + "\"," +
+  client.publish((home_assistant_mqtt_prefix + "/sensor/" + DEVICE_HOSTNAME + "/linkquality/config").c_str(), ("{\"~\":\"" + MQTT_DEVICE_TOPIC + "\"," +
         + "\"name\":\"" + APP_NAME + " Linkquality\"," +
         + deviceString.c_str() +
         + "\"ent_cat\": \"diagnostic\"," +
@@ -103,7 +194,7 @@ void publishHomeAssistantDiscoveryESPConfig(String deviceString) {
         + "\"value_template\": \"{{ value_json.rssi }}\"," +
         + "\"icon\":\"mdi:signal\"," +
         + "\"unit_of_meas\": \"rssi\"}").c_str(), true);
-  mqttClient.publish((home_assistant_mqtt_prefix + "/sensor/" + DEVICE_HOSTNAME + "/ssid/config").c_str(), ("{\"~\":\"" + MQTT_DEVICE_TOPIC + "\"," +
+  client.publish((home_assistant_mqtt_prefix + "/sensor/" + DEVICE_HOSTNAME + "/ssid/config").c_str(), ("{\"~\":\"" + MQTT_DEVICE_TOPIC + "\"," +
         + "\"name\":\"" + APP_NAME + " SSID\"," +
         + deviceString.c_str() +
         + "\"ent_cat\": \"diagnostic\"," +
@@ -112,7 +203,7 @@ void publishHomeAssistantDiscoveryESPConfig(String deviceString) {
         + "\"stat_t\": \"~\"," +
         + "\"value_template\": \"{{ value_json.ssid }}\"," +
         + "\"icon\":\"mdi:access-point-network\"}").c_str(), true);
-  mqttClient.publish((home_assistant_mqtt_prefix + "/sensor/" + DEVICE_HOSTNAME + "/ip/config").c_str(), ("{\"~\":\"" + MQTT_DEVICE_TOPIC + "\"," +
+  client.publish((home_assistant_mqtt_prefix + "/sensor/" + DEVICE_HOSTNAME + "/ip/config").c_str(), ("{\"~\":\"" + MQTT_DEVICE_TOPIC + "\"," +
         + "\"name\":\"" + APP_NAME + " IP\"," +
         + deviceString.c_str() +
         + "\"ent_cat\": \"diagnostic\"," +
@@ -134,6 +225,8 @@ void publishHomeAssistantDiscovery() {
   publishHomeAssistantDiscoveryPowerConfig(deviceString.c_str());
   publishHomeAssistantDiscoverySourceConfig(deviceString.c_str());
   publishHomeAssistantDiscoverySourceTypeConfig(deviceString.c_str());
+  publishHomeAssistantDiscoveryRestartButton(deviceString.c_str());
+  publishHomeAssistantDiscoveryVolume(deviceString.c_str());
 }
 
 void initSyslog()
@@ -152,13 +245,13 @@ void sendDeviceStateToMQTT()
 
   jsonDocument["status"] = powerState ? "on" : "off";
   jsonDocument["volume"] = volume;
-  jsonDocument["isMute"] = isMuted;
+  jsonDocument["mute"] = mute ? "on" : "off";
   jsonDocument["selectedInput"] = selectedInput;
   jsonDocument["sourceType"] = sourceType;
 
   char buffer[BUFFER_SIZE];
   size_t n = serializeJson(jsonDocument, buffer);
-  mqttClient.publish(MQTT_STATE_TOPIC.c_str(), buffer, true);
+  client.publish(MQTT_STATE_TOPIC.c_str(), buffer, true);
 }
 
 void sendEspDeviceStateToMQTT() {
@@ -171,14 +264,18 @@ void sendEspDeviceStateToMQTT() {
   char buffer[BUFFER_SIZE];
   size_t n = serializeJson(jsonDocument, buffer);
 
-  mqttClient.publish(MQTT_DEVICE_TOPIC.c_str(), buffer, true);
+  client.publish(MQTT_DEVICE_TOPIC.c_str(), buffer, true);
 }
 
 void sendCommandToSerial(String command)
 {
-  logger.log(LOG_DEBUG, "Sending command to serial " + command);
+  digitalWrite(LED_BUILTIN, HIGH);
 
-  Serial.println(command);
+  logger.log(LOG_DEBUG, "Sending command to serial " + command);
+  Serial.print(command + "\r");
+  delay(500);
+
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 void publishCommandStatus(String error = "")
@@ -194,7 +291,7 @@ void publishCommandStatus(String error = "")
   }
   serializeJson(jsonDocument, aBuffer);
 
-  mqttClient.publish(MQTT_COMMAND_RESPONSE_TOPIC.c_str(), aBuffer);
+  client.publish(MQTT_COMMAND_RESPONSE_TOPIC.c_str(), aBuffer);
 }
 
 String checkForError(String replyMessage)
@@ -251,11 +348,11 @@ void handleMuteReply(String muteReplyMessage)
 
   if (muteReplyMessage == muteOnReply)
   {
-    isMuted = true;
+    mute = true;
   }
   else if (muteReplyMessage == muteOffReply)
   {
-    isMuted = false;
+    mute = false;
   }
   else
   {
@@ -280,9 +377,9 @@ void handleInputTypeMessage(String inputTypeMessage)
   {
     selectedInput = inputSelectedAuxLabel;
   }
-  else if (inputTypeMessage == inputSelectedTunnerReply)
+  else if (inputTypeMessage == inputSelectedTunerReply)
   {
-    selectedInput = inputSelectedTunnerLabel;
+    selectedInput = inputSelectedTunerLabel;
   }
   else if (inputTypeMessage == inputSelectedTVARCReply)
   {
@@ -328,7 +425,7 @@ void handleSourceMessage(String sourceMessage)
 }
 
 void clearLastPublishedError() {
-  mqttClient.publish(MQTT_COMMAND_RESPONSE_TOPIC.c_str(), "");
+  client.publish(MQTT_COMMAND_RESPONSE_TOPIC.c_str(), "");
 }
 
 bool isOnOffReply(String replyMessage) {
@@ -425,7 +522,6 @@ void serialReadLoop()
         return;
       }
 
-      receivedSerialMessageIsError = true;
       logger.log(LOG_DEBUG, "Got empty message from device");
       publishCommandStatus("Got empty message from device");
     }
@@ -556,9 +652,9 @@ bool processJsonCommand(String message)
     {
       sendCommandToSerial(inputSelectAuxCommand);
     }
-    else if (root["input"] == inputSelectedTunnerLabel)
+    else if (root["input"] == inputSelectedTunerLabel)
     {
-      sendCommandToSerial(inputSelectTunnerCommand);
+      sendCommandToSerial(inputSelectTunerCommand);
     }
     else if (root["input"] == inputSelectedTVARCLabel)
     {
@@ -598,6 +694,7 @@ bool processJsonCommand(String message)
   if (root.containsKey("restart"))
   {
     logger.log(LOG_DEBUG, "Restarting device");
+    delay(500);
     ESP.restart();
   }
 
@@ -606,15 +703,11 @@ bool processJsonCommand(String message)
 
 void initMqtt()
 {
-  mqttClient.setMqttReconnectionAttemptDelay(100);
-  mqttClient.enableLastWillMessage(MQTT_WILL_TOPIC.c_str(), "offline");
-  mqttClient.setKeepAlive(60);
-  mqttClient.setMaxPacketSize(MQTT_PACKET_SIZE);
-  if (LOG_ENABLE_SERIAL) {
-    mqttClient.enableDebuggingMessages();
-  }
-  mqttClient.enableHTTPWebUpdater(HTTP_USER, HTTP_PASSWORD);
-  mqttClient.enableOTA(HTTP_PASSWORD);
+  client.setMqttReconnectionAttemptDelay(100);
+  client.enableLastWillMessage(MQTT_WILL_TOPIC.c_str(), "offline");
+  client.setKeepAlive(15);
+  client.setMaxPacketSize(MQTT_PACKET_SIZE);
+  client.enableMQTTPersistence();
 }
 
 static long lastOnlinePublished = 0;
@@ -623,9 +716,9 @@ void publishLastwillOnline()
 {
   if ((millis() - lastOnlinePublished) > 30000)
   {
-    if (mqttClient.isConnected())
+    if (client.isConnected())
     {
-      mqttClient.publish(MQTT_WILL_TOPIC.c_str(), "online", true);
+      client.publish(MQTT_WILL_TOPIC.c_str(), "online", true);
       lastOnlinePublished = millis();
       sendEspDeviceStateToMQTT();
     }
@@ -634,8 +727,7 @@ void publishLastwillOnline()
 
 void initMdns()
 {
-  if (!MDNS.begin(DEVICE_HOSTNAME))
-  { // http://esp32.local
+  if (!MDNS.begin(DEVICE_HOSTNAME)) { // http://esp32.local
     logger.log(LOG_EMERG, "Error setting up MDNS responder!");
     while (1)
     {
@@ -659,14 +751,14 @@ void powerCycleDevice() {
 
     // wait until we get all the info from the just powered on device
     int retryCount = 0;
-    while (deviceAttributesAreEmpty() && retryCount < 10)
+    while (deviceAttributesAreEmpty() && retryCount < 5)
     {
       delay(1000); // device needs a few seconds to turn on
       retryCount++;
     }
   }
 
-  if (!powerStateStapshot) {
+  if (powerStateStapshot == false) {
     logger.log(LOG_DEBUG, "Device was off. Turning it off again after power cycle.");
 
     turnDeviceOff();
@@ -676,13 +768,9 @@ void powerCycleDevice() {
 void onConnectionEstablished()
 {
   initMdns();
-  server.close();
-  server.begin();
-  mqttClient.publish(MQTT_WILL_TOPIC.c_str(), "online", true);
-  sendDeviceStateToMQTT();
-  sendEspDeviceStateToMQTT();
+  client.publish(MQTT_WILL_TOPIC.c_str(), "online", true);
 
-  mqttClient.subscribe(MQTT_COMMAND_TOPIC.c_str(), [](const String &payload) {
+  client.subscribe(MQTT_COMMAND_TOPIC.c_str(), [](const String &payload) {
     logger.log(LOG_DEBUG, "Command arrived " + payload);
     if (payload.isEmpty() || payload == NULL) {
       logger.log(LOG_DEBUG, "Empty or null command. Ignoring.");
@@ -696,7 +784,65 @@ void onConnectionEstablished()
     } 
   });
 
+  if (client.getConnectionEstablishedCount() > 1) {
+    // only publish first time mqtt is connected, not every time there's a reconnect
+    return;
+  }
+
+  sendDeviceStateToMQTT();
+  sendEspDeviceStateToMQTT();
+
   clearLastPublishedError();
+
+  publishHomeAssistantDiscovery();
+}
+
+void setup() {
+  // Serial.swap();
+  Serial.begin(9600); // this is what the receiver wants
+  // Serial.flush();
+  
+
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  // Connect to WiFi network
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.println("");
+
+  // Wait for connection
+  for (int i = 0; i < 25; i++)
+  {
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      digitalWrite(LED_BUILTIN, LOW);
+      if (LOG_ENABLE_SERIAL) {
+        Serial.print(".");
+      }
+      delay(500);
+      digitalWrite(LED_BUILTIN, HIGH);
+    }
+  }
+  digitalWrite(LED_BUILTIN, LOW);
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    delay(2000);
+    if (LOG_ENABLE_SERIAL) {
+      Serial.println("Restarting...");
+    }
+    ESP.restart();
+  }
+  // initMdns();
+
+  initSyslog();
+
+  initMqtt();
+
+  client.enableHTTPWebUpdater(HTTP_USER, HTTP_PASSWORD);
+  client.enableOTA(HTTP_PASSWORD);
+
+  if (LOG_ENABLE_SERIAL) {
+    client.enableDebuggingMessages();
+  }
 
   // when ESP is restarted and device is powered on, we don't have the source and source type
   // so we do a power cycle, since the device will send the source and source type on power up
@@ -704,31 +850,12 @@ void onConnectionEstablished()
     powerCycleDevice();
   }
 
-  publishHomeAssistantDiscovery();
-}
-
-void setup()
-{
-  Serial.begin(baud_rate);
-
-  pinMode(LED_BUILTIN, OUTPUT);
-
-  initMdns();
-
-  initSyslog();
-
-  initMqtt();
-
-  timeClient.begin();
-
   logger.log(LOG_DEBUG, "Device started.");
 }
 
 void loop()
 {
-  timeClient.update();
-
-  mqttClient.loop();
+  client.loop();
 
   serialReadLoop();
 
