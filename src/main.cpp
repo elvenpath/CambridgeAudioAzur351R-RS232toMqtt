@@ -119,7 +119,7 @@ void publishHomeAssistantDiscoveryVolume(String deviceString) {
         + "\"stat_t\": \"" + MQTT_STATE_TOPIC + "\"," +
         + "\"val_tpl\": \"{{ value_json.volume }}\"," +
         + "\"cmd_t\": \"" + MQTT_COMMAND_TOPIC + "\"," +
-        + "\"unit_of_meas\": \"db\"," +
+        + "\"unit_of_meas\": \"dB\"," +
         + "\"icon\":\"mdi:volume-high\"}").c_str(), true);
 
   client.publish((home_assistant_mqtt_prefix + "/button/" + DEVICE_HOSTNAME + "/volume-up/config").c_str(), ("{\"~\":\"" + MQTT_BASE_TOPIC + "\"," +
